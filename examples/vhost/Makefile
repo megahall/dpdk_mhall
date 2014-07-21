@@ -51,8 +51,9 @@ APP = vhost-switch
 SRCS-y := main.c
 
 CFLAGS += -O2 -D_FILE_OFFSET_BITS=64
-CFLAGS += $(WERROR_FLAGS)
+CFLAGS += $(WERROR_FLAGS) -Wno-switch
 CFLAGS += -D_GNU_SOURCE
+LDFLAGS += -lfuse
 
 include $(RTE_SDK)/mk/rte.extapp.mk
 

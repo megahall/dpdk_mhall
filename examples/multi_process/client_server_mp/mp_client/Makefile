@@ -43,6 +43,7 @@ APP = mp_client
 SRCS-y := client.c
 
 CFLAGS += $(WERROR_FLAGS) -O3
+CFLAGS += -Wno-switch
 CFLAGS += -I$(SRCDIR)/../shared
 
 include $(RTE_SDK)/mk/rte.extapp.mk
