@@ -46,5 +46,6 @@ SRCS-y := main.c
 
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -Wno-switch
 
 include $(RTE_SDK)/mk/rte.extapp.mk
