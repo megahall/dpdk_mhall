@@ -46,6 +46,7 @@ SRCS-y := main.c
 
 CFLAGS += -O3 $(USER_FLAGS)
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -Wno-unused-function
 
 # workaround for a gcc bug with noreturn attribute
 # http://gcc.gnu.org/bugzilla/show_bug.cgi?id=12603
