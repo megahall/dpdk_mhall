@@ -52,6 +52,7 @@ SRCS-y := main.c init.c args.c
 INC := $(wildcard *.h)
 
 CFLAGS += $(WERROR_FLAGS) -O3
+CFLAGS += -Wno-switch
 CFLAGS += -I$(SRCDIR)/../shared
 
 # for newer gcc, e.g. 4.4, no-strict-aliasing may not be necessary

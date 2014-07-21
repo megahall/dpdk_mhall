@@ -56,6 +56,7 @@ SRCS-y += compat_netmap.c
 
 CFLAGS += -O3 -I$(SRCDIR)/../lib -I$(SRCDIR)/../netmap
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -Wno-switch
 
 include $(RTE_SDK)/mk/rte.extapp.mk
 

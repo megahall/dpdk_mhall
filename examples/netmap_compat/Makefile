@@ -38,6 +38,8 @@ unexport RTE_SRCDIR RTE_OUTPUT RTE_EXTMK
 
 DIRS-y += bridge
 
+CFLAGS += -Wno-switch
+
 .PHONY: all clean $(DIRS-y)
 
 all: $(DIRS-y)

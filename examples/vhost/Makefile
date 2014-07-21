@@ -53,6 +53,7 @@ SRCS-y := main.c virtio-net.c vhost-net-cdev.c
 
 CFLAGS += -O2 -I/usr/local/include -D_FILE_OFFSET_BITS=64 -Wno-unused-parameter
 CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -Wno-switch
 LDFLAGS += -lfuse
 
 include $(RTE_SDK)/mk/rte.extapp.mk
