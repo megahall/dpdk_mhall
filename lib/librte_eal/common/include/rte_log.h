@@ -132,6 +132,7 @@ void rte_set_log_level(uint32_t level);
 
 /**
  * Get the global log level.
+ *
  */
 uint32_t rte_get_log_level(void);
 
