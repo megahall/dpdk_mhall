@@ -73,6 +73,7 @@ console_log_write(__attribute__((unused)) void *c, const char *buf, size_t size)
 
 	/* Syslog error levels are from 0 to 7, so subtract 1 to convert */
 	loglevel = rte_log_cur_msg_loglevel() - 1;
+	loglevel = loglevel > RTE_SYSLOG_LEVEL_MAX ? RTE_SYSLOG_LEVEL_MAX : loglevel;
 	memcpy(copybuf, buf, size);
 	copybuf[size] = '\0';
 
