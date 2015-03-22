@@ -129,7 +129,7 @@ int rte_openlog_stream(FILE *f);
  * displayed.
  *
  * @param level
- *   Log level. A value between RTE_LOG_EMERG (1) and RTE_LOG_DEBUG (8).
+ *   Log level. A value between RTE_LOG_EMERG (1) and RTE_LOG_FINEST (11).
  */
 void rte_set_log_level(uint32_t level);
 
@@ -229,7 +229,7 @@ int rte_log_add_in_history(const char *buf, size_t size);
  * logs are automatically prefixed by type when using the macro.
  *
  * @param level
- *   Log level. A value between RTE_LOG_EMERG (1) and RTE_LOG_DEBUG (8).
+ *   Log level. A value between RTE_LOG_EMERG (1) and RTE_LOG_FINEST (11).
  * @param logtype
  *   The log type, for example, RTE_LOGTYPE_EAL.
  * @param format
@@ -261,7 +261,7 @@ int rte_log(uint32_t level, uint32_t logtype, const char *format, ...)
  * removed at compilation time.
  *
  * @param level
- *   Log level. A value between RTE_LOG_EMERG (1) and RTE_LOG_DEBUG (8).
+ *   Log level. A value between RTE_LOG_EMERG (1) and RTE_LOG_FINEST (11).
  * @param logtype
  *   The log type, for example, RTE_LOGTYPE_EAL.
  * @param format
@@ -290,7 +290,7 @@ int rte_vlog(uint32_t level, uint32_t logtype, const char *format, va_list ap)
  *   RTE_LOG(INFO, EAL, "this is a %s", "log");
  *
  * @param l
- *   Log level. A value between EMERG (1) and DEBUG (8). The short name is
+ *   Log level. A value between EMERG (1) and FINEST (11). The short name is
  *   expanded by the macro, so it cannot be an integer value.
  * @param t
  *   The log type, for example, EAL. The short name is expanded by the
