@@ -82,7 +82,7 @@ static struct log_history_list log_history;
 /* global log structure */
 struct rte_logs rte_logs = {
 	.type = ~0,
-	.level = RTE_LOG_DEBUG,
+	.level = RTE_LOG_FINEST,
 	.file = NULL,
 };
 
