@@ -91,14 +91,17 @@ extern struct rte_logs rte_logs;
 #define RTE_LOGTYPE_USER8   0x80000000 /**< User-defined log type 8. */
 
 /* Can't use 0, as it gives compiler warnings */
-#define RTE_LOG_EMERG    1U  /**< System is unusable.               */
-#define RTE_LOG_ALERT    2U  /**< Action must be taken immediately. */
-#define RTE_LOG_CRIT     3U  /**< Critical conditions.              */
-#define RTE_LOG_ERR      4U  /**< Error conditions.                 */
-#define RTE_LOG_WARNING  5U  /**< Warning conditions.               */
-#define RTE_LOG_NOTICE   6U  /**< Normal but significant condition. */
-#define RTE_LOG_INFO     7U  /**< Informational.                    */
-#define RTE_LOG_DEBUG    8U  /**< Debug-level messages.             */
+#define RTE_LOG_EMERG     1U  /**< System is unusable.               */
+#define RTE_LOG_ALERT     2U  /**< Action must be taken immediately. */
+#define RTE_LOG_CRIT      3U  /**< Critical conditions.              */
+#define RTE_LOG_ERR       4U  /**< Error conditions.                 */
+#define RTE_LOG_WARNING   5U  /**< Warning conditions.               */
+#define RTE_LOG_NOTICE    6U  /**< Normal but significant condition. */
+#define RTE_LOG_INFO      7U  /**< Informational.                    */
+#define RTE_LOG_DEBUG     8U  /**< Debug-level messages.             */
+#define RTE_LOG_FINE      9U  /**< Fine-level messages.              */
+#define RTE_LOG_FINER    10U  /**< Finer-level messages.             */
+#define RTE_LOG_FINEST   11U  /**< Finest-level messages.            */
 
 /** The default log stream. */
 extern FILE *eal_default_log_stream;
