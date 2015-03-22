@@ -103,6 +103,9 @@ extern struct rte_logs rte_logs;
 #define RTE_LOG_FINER    10U  /**< Finer-level messages.             */
 #define RTE_LOG_FINEST   11U  /**< Finest-level messages.            */
 
+/* Syslog only supports 7 (DEBUG) and higher levels. */
+#define RTE_SYSLOG_LEVEL_MAX 7U
+
 /** The default log stream. */
 extern FILE *eal_default_log_stream;
 
