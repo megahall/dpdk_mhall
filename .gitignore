@@ -1,0 +1,6 @@
+/app/test/.*
+/app/test/_*
+/app/test/build
+/app/test/*.o
+/app/test/test*
+/build
