@@ -347,7 +347,8 @@ reassemble(struct rte_mbuf *m, uint8_t portid, uint32_t queue,
 	struct rte_ip_frag_death_row *dr;
 	struct rx_queue *rxq;
 	void *d_addr_bytes;
-	uint8_t next_hop, dst_port;
+	uint32_t next_hop;
+	uint8_t dst_port;
 
 	rxq = &qconf->rx_queue_list[queue];
 
