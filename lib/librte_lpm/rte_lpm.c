@@ -159,8 +159,8 @@ rte_lpm_create(const char *name, int socket_id, int max_rules,
 
 	lpm_list = RTE_TAILQ_CAST(rte_lpm_tailq.head, rte_lpm_list);
 
-	RTE_BUILD_BUG_ON(sizeof(struct rte_lpm_tbl24_entry) != 2);
-	RTE_BUILD_BUG_ON(sizeof(struct rte_lpm_tbl8_entry) != 2);
+	/* RTE_BUILD_BUG_ON(sizeof(struct rte_lpm_tbl24_entry) != 2); */
+	/* RTE_BUILD_BUG_ON(sizeof(struct rte_lpm_tbl8_entry) != 2); */
 
 	/* Check user arguments. */
 	if ((name == NULL) || (socket_id < -1) || (max_rules == 0)){
@@ -261,7 +261,7 @@ rte_lpm_free(struct rte_lpm *lpm)
  */
 static inline int32_t
 rule_add(struct rte_lpm *lpm, uint32_t ip_masked, uint8_t depth,
-	uint8_t next_hop)
+	uint32_t next_hop)
 {
 	uint32_t rule_gindex, rule_index, last_rule;
 	int i;
@@ -418,7 +418,7 @@ tbl8_free(struct rte_lpm_tbl8_entry *tbl8, uint32_t tbl8_group_start)
 
 static inline int32_t
 add_depth_small(struct rte_lpm *lpm, uint32_t ip, uint8_t depth,
-		uint8_t next_hop)
+		uint32_t next_hop)
 {
 	uint32_t tbl24_index, tbl24_range, tbl8_index, tbl8_group_end, i, j;
 
@@ -486,7 +486,7 @@ add_depth_small(struct rte_lpm *lpm, uint32_t ip, uint8_t depth,
 
 static inline int32_t
 add_depth_big(struct rte_lpm *lpm, uint32_t ip_masked, uint8_t depth,
-		uint8_t next_hop)
+		uint32_t next_hop)
 {
 	uint32_t tbl24_index;
 	int32_t tbl8_group_index, tbl8_group_start, tbl8_group_end, tbl8_index,
@@ -621,7 +621,7 @@ add_depth_big(struct rte_lpm *lpm, uint32_t ip_masked, uint8_t depth,
  */
 int
 rte_lpm_add(struct rte_lpm *lpm, uint32_t ip, uint8_t depth,
-		uint8_t next_hop)
+		uint32_t next_hop)
 {
 	int32_t rule_index, status = 0;
 	uint32_t ip_masked;
@@ -665,7 +665,7 @@ rte_lpm_add(struct rte_lpm *lpm, uint32_t ip, uint8_t depth,
  */
 int
 rte_lpm_is_rule_present(struct rte_lpm *lpm, uint32_t ip, uint8_t depth,
-uint8_t *next_hop)
+uint32_t *next_hop)
 {
 	uint32_t ip_masked;
 	int32_t rule_index;
@@ -681,7 +681,7 @@ uint8_t *next_hop)
 	rule_index = rule_find(lpm, ip_masked, depth);
 
 	if (rule_index >= 0) {
-		*next_hop = lpm->rules_tbl[rule_index].next_hop;
+		*next_hop = lpm->rules_tbl[rule_index].next_hop & RTE_LPM_NEXT_HOP_BITMASK;
 		return 1;
 	}
 
@@ -771,8 +771,7 @@ delete_depth_small(struct rte_lpm *lpm, uint32_t ip_masked,
 			.valid = VALID,
 			.valid_group = VALID,
 			.depth = sub_rule_depth,
-			.next_hop = lpm->rules_tbl
-			[sub_rule_index].next_hop,
+			.next_hop = lpm->rules_tbl[sub_rule_index].next_hop,
 		};
 
 		for (i = tbl24_index; i < (tbl24_index + tbl24_range); i++) {
@@ -1010,4 +1009,169 @@ rte_lpm_delete_all(struct rte_lpm *lpm)
 
 	/* Delete all rules form the rules table. */
 	memset(lpm->rules_tbl, 0, sizeof(lpm->rules_tbl[0]) * lpm->max_rules);
+}
+
+int
+rte_lpm_lookup(struct rte_lpm *lpm, uint32_t ip, uint32_t *next_hop)
+{
+	unsigned tbl24_index = (ip >> 8);
+	uint32_t tbl_entry;
+
+	/* DEBUG: Check user input arguments. */
+	RTE_LPM_RETURN_IF_TRUE(((lpm == NULL) || (next_hop == NULL)), -EINVAL);
+
+	/* Copy tbl24 entry */
+	tbl_entry = *(const uint32_t *)&lpm->tbl24[tbl24_index];
+
+	/* Copy tbl8 entry (only if needed) */
+	if (unlikely((tbl_entry & RTE_LPM_VALID_EXT_ENTRY_BITMASK) ==
+			RTE_LPM_VALID_EXT_ENTRY_BITMASK)) {
+
+		unsigned tbl8_index = (uint8_t)ip +
+				((uint32_t)tbl_entry * RTE_LPM_TBL8_GROUP_NUM_ENTRIES);
+
+		tbl_entry = *(const uint32_t *)&lpm->tbl8[tbl8_index];
+	}
+
+	*next_hop = (uint32_t)tbl_entry & RTE_LPM_NEXT_HOP_BITMASK;
+	return (tbl_entry & RTE_LPM_LOOKUP_SUCCESS) ? 0 : -ENOENT;
+}
+
+int
+rte_lpm_lookup_bulk(const struct rte_lpm *lpm, const uint32_t * ips,
+		uint32_t * next_hops, const unsigned n)
+{
+	unsigned i;
+	unsigned tbl24_indexes[n];
+
+	/* DEBUG: Check user input arguments. */
+	RTE_LPM_RETURN_IF_TRUE(((lpm == NULL) || (ips == NULL) ||
+			(next_hops == NULL)), -EINVAL);
+
+	for (i = 0; i < n; i++) {
+		tbl24_indexes[i] = ips[i] >> 8;
+	}
+
+	for (i = 0; i < n; i++) {
+		/* Simply copy tbl24 entry to output */
+		next_hops[i] = *(const uint32_t *)&lpm->tbl24[tbl24_indexes[i]];
+
+		/* Overwrite output with tbl8 entry if needed */
+		if (unlikely((next_hops[i] & RTE_LPM_VALID_EXT_ENTRY_BITMASK) ==
+				RTE_LPM_VALID_EXT_ENTRY_BITMASK)) {
+
+			unsigned tbl8_index = (uint8_t)ips[i] +
+					((uint32_t)next_hops[i] *
+					 RTE_LPM_TBL8_GROUP_NUM_ENTRIES);
+
+			next_hops[i] = *(const uint32_t *)&lpm->tbl8[tbl8_index] & RTE_LPM_NEXT_HOP_BITMASK;
+		}
+	}
+	return 0;
+}
+
+
+static
+__m128i _mm_not_si128(__m128i arg)
+{
+    __m128i minusone = _mm_set1_epi32(0xffffffff);
+    return _mm_xor_si128(arg, minusone);
+}
+
+/**
+ * Lookup four IP addresses in an LPM table.
+ *
+ * @param lpm
+ *   LPM object handle
+ * @param ip
+ *   Four IPs to be looked up in the LPM table
+ * @param hop
+ *   Next hop of the most specific rule found for IP (valid on lookup hit only).
+ *   This is an 4 elements array of two byte values.
+ *   If the lookup was succesfull for the given IP, then least significant byte
+ *   of the corresponding element is the  actual next hop and the most
+ *   significant byte is zero.
+ *   If the lookup for the given IP failed, then corresponding element would
+ *   contain default value, see description of then next parameter.
+ * @param defv
+ *   Default value to populate into corresponding element of hop[] array,
+ *   if lookup would fail.
+ */
+void
+rte_lpm_lookupx4(const struct rte_lpm *lpm, __m128i ip, uint32_t hop[4],
+	uint32_t defv)
+{
+	rte_xmm_t tbl24_i;
+	rte_xmm_t tbl8_i;
+	rte_xmm_t tbl_r;
+	rte_xmm_t tbl_h;
+	rte_xmm_t tbl_r_ok;
+
+	rte_xmm_t mask_8;
+	rte_xmm_t mask_ve;
+	rte_xmm_t mask_v;
+	rte_xmm_t mask_h;
+	rte_xmm_t mask_hi;
+
+	mask_8.x = _mm_set1_epi32(UINT8_MAX);
+
+	/*
+	 * RTE_LPM_VALID_EXT_ENTRY_BITMASK for 4 LPM entries
+	 * as one 64-bit value (0x0300030003000300).
+	 */
+	mask_ve.x = _mm_set1_epi32(RTE_LPM_VALID_EXT_ENTRY_BITMASK);
+
+	/*
+	 * RTE_LPM_LOOKUP_SUCCESS for 4 LPM entries
+	 * as one 64-bit value (0x0100010001000100).
+	 */
+	mask_v.x = _mm_set1_epi32(RTE_LPM_LOOKUP_SUCCESS);
+
+	mask_h.x = _mm_set1_epi32(RTE_LPM_NEXT_HOP_BITMASK);
+	mask_hi.x = _mm_not_si128(mask_h.x);
+
+	/* get 4 indexes for tbl24[]. */
+	tbl24_i.x = _mm_srli_epi32(ip, CHAR_BIT);
+
+	/* extract values from tbl24[] */
+	tbl_r.u32[0] = *(const uint32_t *) &lpm->tbl24[tbl24_i.u32[0]];
+	tbl_r.u32[1] = *(const uint32_t *) &lpm->tbl24[tbl24_i.u32[1]];
+	tbl_r.u32[2] = *(const uint32_t *) &lpm->tbl24[tbl24_i.u32[2]];
+	tbl_r.u32[3] = *(const uint32_t *) &lpm->tbl24[tbl24_i.u32[3]];
+
+	/* search successfully finished for all 4 IP addresses. */
+	tbl_r_ok.x = _mm_and_si128(tbl_r.x, mask_ve.x);
+	tbl_h.x = _mm_and_si128(tbl_r.x, mask_hi.x);
+	if (likely(_mm_test_all_ones(_mm_cmpeq_epi32(tbl_r_ok.x, mask_v.x)))) {
+		*(__m128i*) &hop = tbl_h.x;
+		return;
+	}
+
+	/* get 4 indexes for tbl8[]. */
+	tbl8_i.x = _mm_and_si128(ip, mask_8.x);
+
+	if (unlikely(tbl_r_ok.u32[0] == RTE_LPM_VALID_EXT_ENTRY_BITMASK)) {
+		tbl8_i.u32[0] = tbl8_i.u32[0] + tbl_h.u32[0] * RTE_LPM_TBL8_GROUP_NUM_ENTRIES;
+		tbl_r.u32[0] = *(const uint32_t *) &lpm->tbl8[tbl8_i.u32[0]];
+	}
+	if (unlikely(tbl_r_ok.u32[1] == RTE_LPM_VALID_EXT_ENTRY_BITMASK)) {
+		tbl8_i.u32[1] = tbl8_i.u32[1] + tbl_h.u32[1] * RTE_LPM_TBL8_GROUP_NUM_ENTRIES;
+		tbl_r.u32[1] = *(const uint32_t *) &lpm->tbl8[tbl8_i.u32[1]];
+	}
+	if (unlikely(tbl_r_ok.u32[2] == RTE_LPM_VALID_EXT_ENTRY_BITMASK)) {
+		tbl8_i.u32[2] = tbl8_i.u32[2] + tbl_h.u32[2] * RTE_LPM_TBL8_GROUP_NUM_ENTRIES;
+		tbl_r.u32[2] = *(const uint32_t *) &lpm->tbl8[tbl8_i.u32[2]];
+	}
+	if (unlikely(tbl_r_ok.u32[3] == RTE_LPM_VALID_EXT_ENTRY_BITMASK)) {
+		tbl8_i.u32[3] = tbl8_i.u32[3] + tbl_h.u32[3] * RTE_LPM_TBL8_GROUP_NUM_ENTRIES;
+		tbl_r.u32[3] = *(const uint32_t *) &lpm->tbl8[tbl8_i.u32[3]];
+	}
+
+	tbl_r_ok.x = _mm_and_si128(tbl_r.x, mask_v.x);
+	tbl_h.x = _mm_and_si128(tbl_r.x, mask_h.x);
+
+	hop[0] = tbl_r_ok.u32[0] ? tbl_h.u32[0] : defv;
+	hop[1] = tbl_r_ok.u32[1] ? tbl_h.u32[1] : defv;
+	hop[2] = tbl_r_ok.u32[2] ? tbl_h.u32[2] : defv;
+	hop[3] = tbl_r_ok.u32[3] ? tbl_h.u32[3] : defv;
 }
