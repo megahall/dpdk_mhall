@@ -280,31 +280,6 @@ rte_lpm_delete_all(struct rte_lpm *lpm);
  * @return
  *   -EINVAL for incorrect arguments, -ENOENT on lookup miss, 0 on lookup hit
  */
-static inline int
-rte_lpm_lookup(struct rte_lpm *lpm, uint32_t ip, uint8_t *next_hop)
-{
-	unsigned tbl24_index = (ip >> 8);
-	uint16_t tbl_entry;
-
-	/* DEBUG: Check user input arguments. */
-	RTE_LPM_RETURN_IF_TRUE(((lpm == NULL) || (next_hop == NULL)), -EINVAL);
-
-	/* Copy tbl24 entry */
-	tbl_entry = *(const uint16_t *)&lpm->tbl24[tbl24_index];
-
-	/* Copy tbl8 entry (only if needed) */
-	if (unlikely((tbl_entry & RTE_LPM_VALID_EXT_ENTRY_BITMASK) ==
-			RTE_LPM_VALID_EXT_ENTRY_BITMASK)) {
-
-		unsigned tbl8_index = (uint8_t)ip +
-				((uint8_t)tbl_entry * RTE_LPM_TBL8_GROUP_NUM_ENTRIES);
-
-		tbl_entry = *(const uint16_t *)&lpm->tbl8[tbl8_index];
-	}
-
-	*next_hop = (uint8_t)tbl_entry;
-	return (tbl_entry & RTE_LPM_LOOKUP_SUCCESS) ? 0 : -ENOENT;
-}
 int
 rte_lpm_lookup(struct rte_lpm *lpm, uint32_t ip, uint32_t *next_hop);
 
@@ -328,41 +303,6 @@ rte_lpm_lookup(struct rte_lpm *lpm, uint32_t ip, uint32_t *next_hop);
  *  @return
  *   -EINVAL for incorrect arguments, otherwise 0
  */
-#define rte_lpm_lookup_bulk(lpm, ips, next_hops, n) \
-		rte_lpm_lookup_bulk_func(lpm, ips, next_hops, n)
-
-static inline int
-rte_lpm_lookup_bulk_func(const struct rte_lpm *lpm, const uint32_t * ips,
-		uint16_t * next_hops, const unsigned n)
-{
-	unsigned i;
-	unsigned tbl24_indexes[n];
-
-	/* DEBUG: Check user input arguments. */
-	RTE_LPM_RETURN_IF_TRUE(((lpm == NULL) || (ips == NULL) ||
-			(next_hops == NULL)), -EINVAL);
-
-	for (i = 0; i < n; i++) {
-		tbl24_indexes[i] = ips[i] >> 8;
-	}
-
-	for (i = 0; i < n; i++) {
-		/* Simply copy tbl24 entry to output */
-		next_hops[i] = *(const uint16_t *)&lpm->tbl24[tbl24_indexes[i]];
-
-		/* Overwrite output with tbl8 entry if needed */
-		if (unlikely((next_hops[i] & RTE_LPM_VALID_EXT_ENTRY_BITMASK) ==
-				RTE_LPM_VALID_EXT_ENTRY_BITMASK)) {
-
-			unsigned tbl8_index = (uint8_t)ips[i] +
-					((uint8_t)next_hops[i] *
-					 RTE_LPM_TBL8_GROUP_NUM_ENTRIES);
-
-			next_hops[i] = *(const uint16_t *)&lpm->tbl8[tbl8_index];
-		}
-	}
-	return 0;
-}
 
 /* Mask four results. */
 #define	 RTE_LPM_MASKX4_RES	UINT64_C(0x00ff00ff00ff00ff)
@@ -389,98 +329,6 @@ rte_lpm_lookup_bulk(const struct rte_lpm *lpm, const uint32_t * ips,
  *   Default value to populate into corresponding element of hop[] array,
  *   if lookup would fail.
  */
-static inline void
-rte_lpm_lookupx4(const struct rte_lpm *lpm, __m128i ip, uint16_t hop[4],
-	uint16_t defv)
-{
-	__m128i i24;
-	rte_xmm_t i8;
-	uint16_t tbl[4];
-	uint64_t idx, pt;
-
-	const __m128i mask8 =
-		_mm_set_epi32(UINT8_MAX, UINT8_MAX, UINT8_MAX, UINT8_MAX);
-
-	/*
-	 * RTE_LPM_VALID_EXT_ENTRY_BITMASK for 4 LPM entries
-	 * as one 64-bit value (0x0300030003000300).
-	 */
-	const uint64_t mask_xv =
-		((uint64_t)RTE_LPM_VALID_EXT_ENTRY_BITMASK |
-		(uint64_t)RTE_LPM_VALID_EXT_ENTRY_BITMASK << 16 |
-		(uint64_t)RTE_LPM_VALID_EXT_ENTRY_BITMASK << 32 |
-		(uint64_t)RTE_LPM_VALID_EXT_ENTRY_BITMASK << 48);
-
-	/*
-	 * RTE_LPM_LOOKUP_SUCCESS for 4 LPM entries
-	 * as one 64-bit value (0x0100010001000100).
-	 */
-	const uint64_t mask_v =
-		((uint64_t)RTE_LPM_LOOKUP_SUCCESS |
-		(uint64_t)RTE_LPM_LOOKUP_SUCCESS << 16 |
-		(uint64_t)RTE_LPM_LOOKUP_SUCCESS << 32 |
-		(uint64_t)RTE_LPM_LOOKUP_SUCCESS << 48);
-
-	/* get 4 indexes for tbl24[]. */
-	i24 = _mm_srli_epi32(ip, CHAR_BIT);
-
-	/* extract values from tbl24[] */
-	idx = _mm_cvtsi128_si64(i24);
-	i24 = _mm_srli_si128(i24, sizeof(uint64_t));
-
-	tbl[0] = *(const uint16_t *)&lpm->tbl24[(uint32_t)idx];
-	tbl[1] = *(const uint16_t *)&lpm->tbl24[idx >> 32];
-
-	idx = _mm_cvtsi128_si64(i24);
-
-	tbl[2] = *(const uint16_t *)&lpm->tbl24[(uint32_t)idx];
-	tbl[3] = *(const uint16_t *)&lpm->tbl24[idx >> 32];
-
-	/* get 4 indexes for tbl8[]. */
-	i8.x = _mm_and_si128(ip, mask8);
-
-	pt = (uint64_t)tbl[0] |
-		(uint64_t)tbl[1] << 16 |
-		(uint64_t)tbl[2] << 32 |
-		(uint64_t)tbl[3] << 48;
-
-	/* search successfully finished for all 4 IP addresses. */
-	if (likely((pt & mask_xv) == mask_v)) {
-		uintptr_t ph = (uintptr_t)hop;
-		*(uint64_t *)ph = pt & RTE_LPM_MASKX4_RES;
-		return;
-	}
-
-	if (unlikely((pt & RTE_LPM_VALID_EXT_ENTRY_BITMASK) ==
-			RTE_LPM_VALID_EXT_ENTRY_BITMASK)) {
-		i8.u32[0] = i8.u32[0] +
-			(uint8_t)tbl[0] * RTE_LPM_TBL8_GROUP_NUM_ENTRIES;
-		tbl[0] = *(const uint16_t *)&lpm->tbl8[i8.u32[0]];
-	}
-	if (unlikely((pt >> 16 & RTE_LPM_VALID_EXT_ENTRY_BITMASK) ==
-			RTE_LPM_VALID_EXT_ENTRY_BITMASK)) {
-		i8.u32[1] = i8.u32[1] +
-			(uint8_t)tbl[1] * RTE_LPM_TBL8_GROUP_NUM_ENTRIES;
-		tbl[1] = *(const uint16_t *)&lpm->tbl8[i8.u32[1]];
-	}
-	if (unlikely((pt >> 32 & RTE_LPM_VALID_EXT_ENTRY_BITMASK) ==
-			RTE_LPM_VALID_EXT_ENTRY_BITMASK)) {
-		i8.u32[2] = i8.u32[2] +
-			(uint8_t)tbl[2] * RTE_LPM_TBL8_GROUP_NUM_ENTRIES;
-		tbl[2] = *(const uint16_t *)&lpm->tbl8[i8.u32[2]];
-	}
-	if (unlikely((pt >> 48 & RTE_LPM_VALID_EXT_ENTRY_BITMASK) ==
-			RTE_LPM_VALID_EXT_ENTRY_BITMASK)) {
-		i8.u32[3] = i8.u32[3] +
-			(uint8_t)tbl[3] * RTE_LPM_TBL8_GROUP_NUM_ENTRIES;
-		tbl[3] = *(const uint16_t *)&lpm->tbl8[i8.u32[3]];
-	}
-
-	hop[0] = (tbl[0] & RTE_LPM_LOOKUP_SUCCESS) ? (uint8_t)tbl[0] : defv;
-	hop[1] = (tbl[1] & RTE_LPM_LOOKUP_SUCCESS) ? (uint8_t)tbl[1] : defv;
-	hop[2] = (tbl[2] & RTE_LPM_LOOKUP_SUCCESS) ? (uint8_t)tbl[2] : defv;
-	hop[3] = (tbl[3] & RTE_LPM_LOOKUP_SUCCESS) ? (uint8_t)tbl[3] : defv;
-}
 void
 rte_lpm_lookupx4(const struct rte_lpm *lpm, __m128i ip, uint32_t hop[4],
 	uint32_t defv);
