@@ -202,7 +202,7 @@ rte_table_lpm_entry_add(
 	struct rte_table_lpm_key *ip_prefix = (struct rte_table_lpm_key *) key;
 	uint32_t nht_pos, nht_pos0_valid;
 	int status;
-	uint8_t nht_pos0 = 0;
+	uint32_t nht_pos0 = 0;
 
 	/* Check input parameters */
 	if (lpm == NULL) {
@@ -268,7 +268,7 @@ rte_table_lpm_entry_delete(
 {
 	struct rte_table_lpm *lpm = (struct rte_table_lpm *) table;
 	struct rte_table_lpm_key *ip_prefix = (struct rte_table_lpm_key *) key;
-	uint8_t nht_pos;
+	uint32_t nht_pos;
 	int status;
 
 	/* Check input parameters */
@@ -342,7 +342,7 @@ rte_table_lpm_lookup(
 			uint32_t ip = rte_bswap32(
 				RTE_MBUF_METADATA_UINT32(pkt, lpm->offset));
 			int status;
-			uint8_t nht_pos;
+			uint32_t nht_pos;
 
 			status = rte_lpm_lookup(lpm->lpm, ip, &nht_pos);
 			if (status == 0) {
