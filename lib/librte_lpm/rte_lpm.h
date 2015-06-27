@@ -82,32 +82,36 @@ extern "C" {
 #endif
 
 /** @internal bitmask with valid and ext_entry/valid_group fields set */
-#define RTE_LPM_VALID_EXT_ENTRY_BITMASK 0x0300
+#define RTE_LPM_VALID_EXT_ENTRY_BITMASK 0x03000000
+
+/** @internal bitmask with next_hop field set */
+#define RTE_LPM_NEXT_HOP_BITMASK        0x00FFFFFF
 
 /** Bitmask used to indicate successful lookup */
-#define RTE_LPM_LOOKUP_SUCCESS          0x0100
+#define RTE_LPM_LOOKUP_SUCCESS          0x01000000
+
 
 #if RTE_BYTE_ORDER == RTE_LITTLE_ENDIAN
 /** @internal Tbl24 entry structure. */
 struct rte_lpm_tbl24_entry {
-	/* Stores Next hop or group index (i.e. gindex)into tbl8. */
+	/* Stores Next hop or group index (i.e. gindex) into tbl8. */
 	union {
-		uint8_t next_hop;
-		uint8_t tbl8_gindex;
-	};
+		uint32_t next_hop    :24;
+		uint32_t tbl8_gindex :24;
+	} __attribute__((__packed__));
 	/* Using single uint8_t to store 3 values. */
-	uint8_t valid     :1; /**< Validation flag. */
-	uint8_t ext_entry :1; /**< External entry. */
-	uint8_t depth     :6; /**< Rule depth. */
+	uint32_t valid     :1; /**< Validation flag. */
+	uint32_t ext_entry :1; /**< External entry. */
+	uint32_t depth     :6; /**< Rule depth. */
 };
 
 /** @internal Tbl8 entry structure. */
 struct rte_lpm_tbl8_entry {
-	uint8_t next_hop; /**< next hop. */
+	uint32_t next_hop   :24; /**< next hop. */
 	/* Using single uint8_t to store 3 values. */
-	uint8_t valid       :1; /**< Validation flag. */
-	uint8_t valid_group :1; /**< Group validation flag. */
-	uint8_t depth       :6; /**< Rule depth. */
+	uint8_t valid       :1;  /**< Validation flag. */
+	uint8_t valid_group :1;  /**< Group validation flag. */
+	uint8_t depth       :6;  /**< Rule depth. */
 };
 #else
 struct rte_lpm_tbl24_entry {
@@ -130,8 +134,8 @@ struct rte_lpm_tbl8_entry {
 
 /** @internal Rule structure. */
 struct rte_lpm_rule {
-	uint32_t ip; /**< Rule IP address. */
-	uint8_t  next_hop; /**< Rule next hop. */
+	uint32_t ip;       /**< Rule IP address. */
+	uint32_t next_hop; /**< Rule next hop. */
 };
 
 /** @internal Contains metadata about the rules table. */
@@ -219,7 +223,7 @@ rte_lpm_free(struct rte_lpm *lpm);
  *   0 on success, negative value otherwise
  */
 int
-rte_lpm_add(struct rte_lpm *lpm, uint32_t ip, uint8_t depth, uint8_t next_hop);
+rte_lpm_add(struct rte_lpm *lpm, uint32_t ip, uint8_t depth, uint32_t next_hop);
 
 /**
  * Check if a rule is present in the LPM table,
@@ -238,7 +242,7 @@ rte_lpm_add(struct rte_lpm *lpm, uint32_t ip, uint8_t depth, uint8_t next_hop);
  */
 int
 rte_lpm_is_rule_present(struct rte_lpm *lpm, uint32_t ip, uint8_t depth,
-uint8_t *next_hop);
+uint32_t *next_hop);
 
 /**
  * Delete a rule from the LPM table.
@@ -301,6 +305,8 @@ rte_lpm_lookup(struct rte_lpm *lpm, uint32_t ip, uint8_t *next_hop)
 	*next_hop = (uint8_t)tbl_entry;
 	return (tbl_entry & RTE_LPM_LOOKUP_SUCCESS) ? 0 : -ENOENT;
 }
+int
+rte_lpm_lookup(struct rte_lpm *lpm, uint32_t ip, uint32_t *next_hop);
 
 /**
  * Lookup multiple IP addresses in an LPM table. This may be implemented as a
@@ -360,6 +366,9 @@ rte_lpm_lookup_bulk_func(const struct rte_lpm *lpm, const uint32_t * ips,
 
 /* Mask four results. */
 #define	 RTE_LPM_MASKX4_RES	UINT64_C(0x00ff00ff00ff00ff)
+int
+rte_lpm_lookup_bulk(const struct rte_lpm *lpm, const uint32_t * ips,
+		uint32_t * next_hops, const unsigned n);
 
 /**
  * Lookup four IP addresses in an LPM table.
@@ -472,6 +481,9 @@ rte_lpm_lookupx4(const struct rte_lpm *lpm, __m128i ip, uint16_t hop[4],
 	hop[2] = (tbl[2] & RTE_LPM_LOOKUP_SUCCESS) ? (uint8_t)tbl[2] : defv;
 	hop[3] = (tbl[3] & RTE_LPM_LOOKUP_SUCCESS) ? (uint8_t)tbl[3] : defv;
 }
+void
+rte_lpm_lookupx4(const struct rte_lpm *lpm, __m128i ip, uint32_t hop[4],
+	uint32_t defv);
 
 #ifdef __cplusplus
 }
