@@ -213,7 +213,7 @@ rte_table_lpm_ipv6_entry_add(
 		(struct rte_table_lpm_ipv6_key *) key;
 	uint32_t nht_pos, nht_pos0_valid;
 	int status;
-	uint8_t nht_pos0;
+	uint32_t nht_pos0;
 
 	/* Check input parameters */
 	if (lpm == NULL) {
@@ -280,7 +280,7 @@ rte_table_lpm_ipv6_entry_delete(
 	struct rte_table_lpm_ipv6 *lpm = (struct rte_table_lpm_ipv6 *) table;
 	struct rte_table_lpm_ipv6_key *ip_prefix =
 		(struct rte_table_lpm_ipv6_key *) key;
-	uint8_t nht_pos;
+	uint32_t nht_pos;
 	int status;
 
 	/* Check input parameters */
@@ -356,7 +356,7 @@ rte_table_lpm_ipv6_lookup(
 			uint8_t *ip = RTE_MBUF_METADATA_UINT8_PTR(pkt,
 				lpm->offset);
 			int status;
-			uint8_t nht_pos;
+			uint32_t nht_pos;
 
 			status = rte_lpm6_lookup(lpm->lpm, ip, &nht_pos);
 			if (status == 0) {
