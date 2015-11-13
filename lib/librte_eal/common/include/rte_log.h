@@ -305,10 +305,10 @@ int rte_vlog(uint32_t level, uint32_t logtype, const char *format, va_list ap)
  *   - 0: Success.
  *   - Negative on error.
  */
-#define RTE_LOG(l, t, ...)					\
-	(void)((RTE_LOG_ ## l <= RTE_LOG_LEVEL) ?		\
-	 rte_log(RTE_LOG_ ## l,					\
-		 RTE_LOGTYPE_ ## t, # t ": " __VA_ARGS__) :	\
+#define RTE_LOG(l, t, ...)						\
+	(void)((RTE_LOG_ ## l <= RTE_LOG_LEVEL) ?			\
+	 rte_log(RTE_LOG_ ## l,						\
+		 RTE_LOGTYPE_ ## t, # t ": " #l ": " __VA_ARGS__) :	\
 	 0)
 
 #ifdef __cplusplus
