@@ -800,6 +800,7 @@ static __attribute__((noreturn)) void *
 eal_intr_thread_main(__rte_unused void *arg)
 {
 	struct epoll_event ev;
+	memset(&ev, 0, sizeof(ev));
 
 	/* host thread, never break out */
 	for (;;) {
